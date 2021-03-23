@@ -92,7 +92,7 @@ fn in_mandelbrot(c:Complex, max_iterations:usize)->usize{
 // So with square pixels you'd want about 3.5:2 horizontal:vertical aspect ratio.
 fn render(x_resolution:u32, y_resolution:u32,left:f64,top:f64, right:f64, bottom:f64){
 	let image_size = x_resolution * y_resolution;
-	let max_iterations:usize=255;
+	let max_iterations:usize=1500;
 		
 	let width = right-left;
 	let height = top-bottom;
@@ -109,16 +109,39 @@ fn render(x_resolution:u32, y_resolution:u32,left:f64,top:f64, right:f64, bottom
 		for row in 0..y_resolution-1{
 			let y = top - height * (row as f64 / y_resolution as f64);			
 			let point = Complex {x:x as f64, iy:y as f64};					
-			let mut iterations = point.in_mandelbrot(max_iterations);
-			//let mut iterations=in_mandelbrot(point,max_iterations);
-			if iterations>255{
-				iterations=255;
-			}
+			let  iterations = point.in_mandelbrot(max_iterations);
+			//let  iterations=in_mandelbrot(point,max_iterations);
+			
 			// Could make neater colors by checking iterations of 1,2,3,4,5,6.. up to 20 or so and
 			// assigning them different hues, not just brightnesses.
-			let mut color:u8 = iterations as u8;
+			let color = (iterations % 256) as u8;
+			let mut  colors = [color,color,color];
+			if iterations == 1{
+				colors = [0,0,0];				
+			}
+			if iterations==2{
+				colors = [80,0,0];
+			}
+			if iterations == 3{
+				colors = [125,0,0];
+			}
+			if iterations  >=4 && iterations<=8{
+				colors = [195,50,50];
+			}
+			if iterations>=9 && iterations<=20{
+				colors = [255,150,10];
+			}
+			if iterations>=20 && iterations<=25{
+				colors = [15,180,5];
+			}
+			if iterations >=26 &&  iterations <=50{
+				colors = [50,25,250];
+			}
+			if iterations>=50 && iterations<=95{
+				colors = [255,0,255];
+			}
 						
-			*image.get_pixel_mut(column,row) = image::Rgb([color/2,color,color]);
+			*image.get_pixel_mut(column,row) = image::Rgb(colors);
 			if iterations < max_iterations {
 				escapes += 1;
 			}			
