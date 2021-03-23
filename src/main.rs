@@ -1,5 +1,6 @@
 extern crate image;
-
+// The Mandelbrot set is the set of values of c in the complex plane for which the orbit of the critical point z = 0 under iteration of the quadratic map
+// zn + 1 = zn^2 + c 
 
 use image::{ImageBuffer, RgbImage};
 use std::ops::{Add, Sub, Mul};
@@ -67,7 +68,9 @@ impl Complex {
 
 // The Mandelbrot set is the set of values of c in the complex plane for which the orbit of the critical point z = 0 under iteration of the quadratic map
 // zn + 1 = zn^2 + c 
+//
 // This is the simplified ccalculation reducing the number of multiplications.
+// This does the same thing as  Complex::in_mandelbrot() but slightly faster
 fn in_mandelbrot(c:Complex, max_iterations:usize)->usize{	
 	let mut iteration:usize = 0;	
 	let mut zn = Complex {x:0.0,iy:0.0};
@@ -84,8 +87,9 @@ fn in_mandelbrot(c:Complex, max_iterations:usize)->usize{
 }
 
 
-// left,right,top,bottom are locations in the complex plan i.e. the viewport
+
 // Standard starting view is  1.0, -2.5, 1.0, -1.0
+// So with square pixels you'd want about 3.5:2 horizontal:vertical aspect ratio.
 fn render(x_resolution:u32, y_resolution:u32,left:f64,top:f64, right:f64, bottom:f64){
 	let image_size = x_resolution * y_resolution;
 	let max_iterations:usize=255;
@@ -110,9 +114,11 @@ fn render(x_resolution:u32, y_resolution:u32,left:f64,top:f64, right:f64, bottom
 			if iterations>255{
 				iterations=255;
 			}
-			let color:u8 = iterations as u8;
-			
-			*image.get_pixel_mut(column,row) = image::Rgb([color,color,color]);
+			// Could make neater colors by checking iterations of 1,2,3,4,5,6.. up to 20 or so and
+			// assigning them different hues, not just brightnesses.
+			let mut color:u8 = iterations as u8;
+						
+			*image.get_pixel_mut(column,row) = image::Rgb([color/2,color,color]);
 			if iterations < max_iterations {
 				escapes += 1;
 			}			
@@ -129,8 +135,8 @@ fn main() {
 	
     println!("Rendering an image of the Mandelbrot set...");
 	
-	const X_RESOLUTION:u32 = 500;
-	const Y_RESOLUTION:u32 = 500;
+	const X_RESOLUTION:u32 = 1400;
+	const Y_RESOLUTION:u32 = 800;
 
 	// The square  out of the complex plane we're going to map over:
 	const LEFT:f64 = -2.5;
