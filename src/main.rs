@@ -4,6 +4,9 @@ extern crate image;
 
 use image::{ImageBuffer, RgbImage};
 use std::ops::{Add, Sub, Mul};
+use  rayon;	
+use rayon::prelude::*;
+use std::time::Duration;
 
 
 #[derive(Clone,Copy,Debug, PartialEq)]
@@ -86,69 +89,64 @@ fn in_mandelbrot(c:Complex, max_iterations:usize)->usize{
 	iteration		
 }
 
+fn compute_vertical_line(x:f64, y_resolution:u32,top:f64, height:f64)->Vec<usize>{
+	let max_iterations:usize=1500;	
+	let mut line:Vec<usize> = Vec::new();
+	for row in 0..y_resolution-1{
+		let y = top - height * (row as f64 / y_resolution as f64);			
+		let point = Complex {x:x as f64, iy:y as f64};					
+		let  iterations = point.in_mandelbrot(max_iterations);
+		//let  iterations=in_mandelbrot(point,max_iterations);
+		line.push(iterations);
+	}		
+	line	
+}
 
+fn compute_image(left:f64,top:f64,right:f64,bottom:f64,x_resolution:u32,y_resolution:u32)->Vec<Vec<usize>>{
+	let width = right-left;
+	let height = top-bottom;
+		   	
+	// sample points from the complex plane to match the image RESOLUTION			
+	// parallel iteration
+	let data = (0..x_resolution-1).into_par_iter().map(|column|{
+		let x = left + width * (column as f64 / x_resolution as f64);		
+		return compute_vertical_line(x, y_resolution, top, height)
+	}).collect();
+	data
+}
+
+// Figure out the colors for the pixel and place it in the image buffer
+fn plot_pixel(image:& mut RgbImage,column:u32, row:u32,iterations:usize){
+	let color = (iterations % 256) as u8;
+	let default_colors = [color,color,color];
+	
+	let colors = match color {
+		1 => [0,0,0],
+		2 => [80,0,0],
+		3 => [125,0,0],
+		4..=8 => [195,50,50],
+		9..=20 =>[255,150,10],
+		21..=25 => [15,180,5],
+		26..=50 =>[50,25,250],
+		51..=95 => [255,0,255],
+		_ => default_colors							
+	};
+	
+	*image.get_pixel_mut(column,row) = image::Rgb(colors);	
+}
 
 // Standard starting view is  1.0, -2.5, 1.0, -1.0
 // So with square pixels you'd want about 3.5:2 horizontal:vertical aspect ratio.
-fn render(x_resolution:u32, y_resolution:u32,left:f64,top:f64, right:f64, bottom:f64){
-	let image_size = x_resolution * y_resolution;
-	let max_iterations:usize=1500;
-		
-	let width = right-left;
-	let height = top-bottom;
-	
+fn render(x_resolution:u32, y_resolution:u32,data:Vec<Vec<usize>>){
 	// The picture goes in here	
     let mut image: RgbImage = ImageBuffer::new(x_resolution, y_resolution);
-       	
-	// Track amount of area within the mapped plane that's not  in the Mandelbrot set
-	let mut escapes = 0;
-	
-	// sample points from the complex plane to match the image RESOLUTION		
-	for column in 0..x_resolution-1{			
-		let x = left + width * (column as f64 / x_resolution as f64);		
-		for row in 0..y_resolution-1{
-			let y = top - height * (row as f64 / y_resolution as f64);			
-			let point = Complex {x:x as f64, iy:y as f64};					
-			let  iterations = point.in_mandelbrot(max_iterations);
-			//let  iterations=in_mandelbrot(point,max_iterations);
-			
-			// Could make neater colors by checking iterations of 1,2,3,4,5,6.. up to 20 or so and
-			// assigning them different hues, not just brightnesses.
-			let color = (iterations % 256) as u8;
-			let mut  colors = [color,color,color];
-			if iterations == 1{
-				colors = [0,0,0];				
-			}
-			if iterations==2{
-				colors = [80,0,0];
-			}
-			if iterations == 3{
-				colors = [125,0,0];
-			}
-			if iterations  >=4 && iterations<=8{
-				colors = [195,50,50];
-			}
-			if iterations>=9 && iterations<=20{
-				colors = [255,150,10];
-			}
-			if iterations>=20 && iterations<=25{
-				colors = [15,180,5];
-			}
-			if iterations >=26 &&  iterations <=50{
-				colors = [50,25,250];
-			}
-			if iterations>=50 && iterations<=95{
-				colors = [255,0,255];
-			}
-						
-			*image.get_pixel_mut(column,row) = image::Rgb(colors);
-			if iterations < max_iterations {
-				escapes += 1;
-			}			
+    			
+	for column in 0..x_resolution-1{
+		for row in 0..y_resolution-1{			
+			let iterations = data[column as usize][row as usize];
+			plot_pixel(& mut image, column as u32, row as u32, iterations);						
 		}
 	}
-	let percent_outside:i32 = (escapes as f64  * 100.0/ image_size as f64)  as i32;
-	println!("Escapes: {}, percent outside within image: {}",escapes,percent_outside);
 	image.save("mandelbrot.png").unwrap();
 }
 	
@@ -160,6 +158,7 @@ fn main() {
 	
 	const X_RESOLUTION:u32 = 1400;
 	const Y_RESOLUTION:u32 = 800;
+	let image_size = X_RESOLUTION * Y_RESOLUTION;
 
 	// The square  out of the complex plane we're going to map over:
 	const LEFT:f64 = -2.5;
@@ -167,6 +166,8 @@ fn main() {
 	const TOP:f64 = 1.0;
 	const BOTTOM:f64 = -1.0;
 	
-	render(X_RESOLUTION, Y_RESOLUTION, LEFT, TOP, RIGHT, BOTTOM);
+	let data = compute_image(LEFT, TOP, RIGHT, BOTTOM, X_RESOLUTION, Y_RESOLUTION);	
+	render(X_RESOLUTION, Y_RESOLUTION, data);
+	println!("Rendered ({} + i{}), ({} + i{}) with {} pixels",LEFT,TOP,BOTTOM,RIGHT,image_size);	
 }	
 	
