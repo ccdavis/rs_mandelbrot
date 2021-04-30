@@ -6,7 +6,7 @@ use image::{ImageBuffer, RgbImage};
 use std::ops::{Add, Sub, Mul};
 use  rayon;	
 use rayon::prelude::*;
-use std::time::Duration;
+use std::time::{Duration,Instant};
 
 
 #[derive(Clone,Copy,Debug, PartialEq)]
@@ -90,7 +90,7 @@ fn in_mandelbrot(c:Complex, max_iterations:usize)->usize{
 }
 
 fn compute_vertical_line(x:f64, y_resolution:u32,top:f64, height:f64)->Vec<usize>{
-	let max_iterations:usize=1500;	
+	let max_iterations:usize=2500;
 	let mut line:Vec<usize> = Vec::new();
 	for row in 0..y_resolution-1{
 		let y = top - height * (row as f64 / y_resolution as f64);			
@@ -156,8 +156,8 @@ fn main() {
 	
     println!("Rendering an image of the Mandelbrot set...");
 	
-	const X_RESOLUTION:u32 = 1400;
-	const Y_RESOLUTION:u32 = 800;
+	const X_RESOLUTION:u32 = 5600;
+	const Y_RESOLUTION:u32 = 3200;
 	let image_size = X_RESOLUTION * Y_RESOLUTION;
 
 	// The square  out of the complex plane we're going to map over:
@@ -166,8 +166,17 @@ fn main() {
 	const TOP:f64 = 1.0;
 	const BOTTOM:f64 = -1.0;
 	
+	let mut start = Instant::now();
 	let data = compute_image(LEFT, TOP, RIGHT, BOTTOM, X_RESOLUTION, Y_RESOLUTION);	
+	let mut duration = start.elapsed();
+	println!("Time elapsed in computing image: {:?}", duration);
+	
+	start = Instant::now();
 	render(X_RESOLUTION, Y_RESOLUTION, data);
+	duration = start.elapsed();
+	println!("Time elapsed in drawing and saving image: {:?}", duration);
+	
+	
 	println!("Rendered ({} + i{}), ({} + i{}) with {} pixels",LEFT,TOP,BOTTOM,RIGHT,image_size);	
 }	
 	
