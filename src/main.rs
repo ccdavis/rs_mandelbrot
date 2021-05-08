@@ -1,3 +1,4 @@
+
 extern crate image;
 // The Mandelbrot set is the set of values of c in the complex plane for which the orbit of the critical point z = 0 under iteration of the quadratic map
 // zn + 1 = zn^2 + c 
@@ -7,6 +8,28 @@ use std::ops::{Add, Sub, Mul};
 use  rayon;	
 use rayon::prelude::*;
 use std::time::{Duration,Instant};
+
+
+struct FrameParams{
+	left:f64,
+	top:f64,
+	right:f64,
+	bottom:f64,
+	x_resolution:u32,
+	y_resolution:u32		
+}
+
+impl FrameParams{
+	
+	fn width(&self)->f64{
+		self.right-self.left
+	}
+	
+	fn height(&self)->f64{
+		self.top - self.bottom
+	}
+}
+
 
 
 #[derive(Clone,Copy,Debug, PartialEq)]
@@ -89,30 +112,27 @@ fn in_mandelbrot(c:Complex, max_iterations:usize)->usize{
 	iteration		
 }
 
-fn compute_vertical_line(x:f64, y_resolution:u32,top:f64, height:f64)->Vec<usize>{
+fn compute_vertical_line(x:f64, view:&FrameParams)->Vec<usize>{
 	let max_iterations:usize=2500;
 	let mut line:Vec<usize> = Vec::new();
-	for row in 0..y_resolution-1{
-		let y = top - height * (row as f64 / y_resolution as f64);			
+	for row in 0..view.y_resolution-1{
+		let y = view.top - view.height() * (row as f64 / view.y_resolution as f64);			
 		let point = Complex {x:x as f64, iy:y as f64};					
 		let  iterations = point.in_mandelbrot(max_iterations);
 		//let  iterations=in_mandelbrot(point,max_iterations);
 		line.push(iterations);
 	}		
-	line	
+	line
 }
 
-fn compute_image(left:f64,top:f64,right:f64,bottom:f64,x_resolution:u32,y_resolution:u32)->Vec<Vec<usize>>{
-	let width = right-left;
-	let height = top-bottom;
-		   	
+fn compute_image(view:&FrameParams)->Vec<Vec<usize>>{		   
 	// sample points from the complex plane to match the image RESOLUTION			
 	// parallel iteration
-	let data = (0..x_resolution-1).into_par_iter().map(|column|{
-		let x = left + width * (column as f64 / x_resolution as f64);		
-		return compute_vertical_line(x, y_resolution, top, height)
+	let data = (0..view.x_resolution-1).into_par_iter().map(|column|{
+		let x = view.left + view.width() * (column as f64 / view.x_resolution as f64);		
+		return compute_vertical_line(x, view);
 	}).collect();
-	data
+	data		
 }
 
 // Figure out the colors for the pixel and place it in the image buffer
@@ -137,7 +157,7 @@ fn plot_pixel(image:& mut RgbImage,column:u32, row:u32,iterations:usize){
 
 // Standard starting view is  1.0, -2.5, 1.0, -1.0
 // So with square pixels you'd want about 3.5:2 horizontal:vertical aspect ratio.
-fn render(x_resolution:u32, y_resolution:u32,data:Vec<Vec<usize>>){
+fn render(x_resolution:u32, y_resolution:u32,data:Vec<Vec<usize>>, frame_name:&str){
 	// The picture goes in here	
     let mut image: RgbImage = ImageBuffer::new(x_resolution, y_resolution);
     			
@@ -147,36 +167,38 @@ fn render(x_resolution:u32, y_resolution:u32,data:Vec<Vec<usize>>){
 			plot_pixel(& mut image, column as u32, row as u32, iterations);						
 		}
 	}
-	image.save("mandelbrot.png").unwrap();
+	image.save(frame_name).unwrap();
 }
 	
 
+fn zoom(view:&FrameParams,target:Complex,base_frame_name:&str){
+	
+}
 
-fn main() {
-	
-    println!("Rendering an image of the Mandelbrot set...");
-	
-	const X_RESOLUTION:u32 = 5600;
-	const Y_RESOLUTION:u32 = 3200;
-	let image_size = X_RESOLUTION * Y_RESOLUTION;
-
-	// The square  out of the complex plane we're going to map over:
-	const LEFT:f64 = -2.5;
-	const RIGHT:f64 = 1.0;
-	const TOP:f64 = 1.0;
-	const BOTTOM:f64 = -1.0;
-	
+fn single_frame(view:&FrameParams, frame_name:&str){
 	let mut start = Instant::now();
-	let data = compute_image(LEFT, TOP, RIGHT, BOTTOM, X_RESOLUTION, Y_RESOLUTION);	
+	let data = compute_image(view);	
 	let mut duration = start.elapsed();
 	println!("Time elapsed in computing image: {:?}", duration);
-	
 	start = Instant::now();
-	render(X_RESOLUTION, Y_RESOLUTION, data);
+	render(view.x_resolution, view.y_resolution, data, frame_name);
 	duration = start.elapsed();
-	println!("Time elapsed in drawing and saving image: {:?}", duration);
+	println!("Time elapsed in drawing and saving image: {:?}", duration);	
+}
+
+fn main(){
+    println!("Rendering an image of the Mandelbrot set...");
+
+	// The square  out of the complex plane we're going to map over:	
+	let view = FrameParams{
+		left:-2.5, 
+		top:1.0, 
+		right:1.0, 
+		bottom:-1.0,
+		x_resolution:2800,
+		y_resolution:1600
+	};
 	
-	
-	println!("Rendered ({} + i{}), ({} + i{}) with {} pixels",LEFT,TOP,BOTTOM,RIGHT,image_size);	
+	single_frame(&view,"mandelbrot.png");
 }	
 	
