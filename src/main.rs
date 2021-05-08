@@ -172,6 +172,17 @@ fn render(x_resolution:u32, y_resolution:u32,data:Vec<Vec<usize>>, frame_name:&s
 	
 
 fn zoom(view:&FrameParams,target:Complex,base_frame_name:&str){
+	let total_frames = 150;
+	
+	for f in 0..total_frames-1{
+		let f_name:String =  String::from(base_frame_name) + &f.to_string();
+		
+		// TODO: Recalculate view bounds
+		
+		single_frame(view, &f_name);		
+	}
+	
+	
 	
 }
 
